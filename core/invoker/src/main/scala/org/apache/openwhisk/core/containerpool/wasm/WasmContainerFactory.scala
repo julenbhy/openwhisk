@@ -41,7 +41,7 @@ class WasmContainerFactory(instance: InvokerInstanceId, config: WhiskConfig)(imp
 
   override def init(): Unit = cleanup()
 
-  override def cleanup(): Unit = ???
+  override def cleanup(): Unit = {}
 }
 
 object WasmContainerFactoryProvider extends ContainerFactoryProvider {

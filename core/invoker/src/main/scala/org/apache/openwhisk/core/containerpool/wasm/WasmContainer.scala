@@ -50,6 +50,8 @@ class WasmContainer(protected[core] val id: ContainerId, protected[core] val add
     extends Container {
 
   override def logs(limit: ByteSize, waitForSentinel: Boolean)(implicit
-    transid: TransactionId): Source[ByteString, Any] = ???
+    transid: TransactionId): Source[ByteString, Any] = {
+      Source.empty
+    }
 
 }
