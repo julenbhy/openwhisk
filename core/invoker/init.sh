@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+./wasmruntime &
+
 ./copyJMXFiles.sh
 
 export INVOKER_OPTS

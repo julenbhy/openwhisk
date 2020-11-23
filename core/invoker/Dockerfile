@@ -38,6 +38,7 @@ RUN curl -sSL -o docker-${DOCKER_VERSION}.tgz https://download.docker.com/linux/
 
 ADD build/distributions/invoker.tar ./
 
+COPY wasmruntime /
 COPY init.sh /
 RUN chmod +x init.sh
 
@@ -46,4 +47,5 @@ RUN chmod +x init.sh
 RUN adduser -D -u ${UID} -h /home/${NOT_ROOT_USER} -s /bin/bash ${NOT_ROOT_USER}
 
 EXPOSE 8080
+
 CMD ["./init.sh", "0"]
