@@ -121,7 +121,14 @@ trait Container {
       logLevel = InfoLevel)
     containerHttpMaxConcurrent = maxConcurrent
     containerHttpTimeout = timeout
-    val body = JsObject("value" -> initializer)
+    val json_initializer = entity match {
+      case Some(value) => {
+        val annotations = JsObject("annotations" -> value.annotations.toJsObject)
+        JsObject(initializer.fields ++ annotations.fields)
+      }
+      case None => initializer
+    }
+    val body = JsObject("value" -> json_initializer)
     callContainer("/init", body, timeout, maxConcurrent, retry = true)
       .andThen { // never fails
         case Success(r: RunResult) =>
