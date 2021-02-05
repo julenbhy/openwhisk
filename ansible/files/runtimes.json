@@ -313,7 +313,7 @@
                 "deprecated": false,
                 "attached": {
                     "attachmentName": "codefile",
-                    "attachmentType": "application/wasm"
+                    "attachmentType": "application/octet-stream"
                 }
             }
         ]
