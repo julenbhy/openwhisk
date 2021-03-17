@@ -221,7 +221,7 @@ trait Container {
       conn
     }
     http
-      .post(path, body, retry, reschedule)
+      .post(s"/${id.asString}${path}", body, retry, reschedule)
       .map { response =>
         val finished = Instant.now()
         RunResult(Interval(started, finished), response)

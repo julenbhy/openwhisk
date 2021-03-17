@@ -54,4 +54,9 @@ class WasmContainer(protected[core] val id: ContainerId, protected[core] val add
       Source.empty
     }
 
+  override def destroy()(implicit transid: TransactionId): Future[Unit] = {
+    super.destroy()
+    wasmRuntime.destroy(id)
+  }
+
 }

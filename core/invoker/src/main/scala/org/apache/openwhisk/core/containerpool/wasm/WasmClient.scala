@@ -7,12 +7,11 @@ import akka.http.scaladsl.Http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.model.ContentTypes
 import org.apache.openwhisk.core.containerpool.ContainerAddress
 import spray.json.DefaultJsonProtocol._
-import spray.json._
 import org.apache.openwhisk.core.containerpool.ContainerId
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 
 case class WasmClientApiException(e: String) extends Exception
 
@@ -22,26 +21,30 @@ class WasmClient()(implicit
   protected val as: ActorSystem)
     extends WasmRuntimeApi {
 
-  private val endpoint = "http://127.0.0.1:9000"
+  private val endpoint = "127.0.0.1"
+  private val port = 9000
 
   case class WasmRuntimeResponse(containerId: String, port: Int)
   implicit val WasmRuntimeResponseFormat = jsonFormat2(WasmRuntimeResponse)
 
-  // Needed since the Unmarshal below otherwise cannot find a materializer
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-
   def start(): Future[(ContainerId, ContainerAddress)] = {
+    val containerId = java.util.UUID.randomUUID().toString()
 
-    logging.info(this, s"starting new container")
+    logging.info(this, s"Generated new container id $containerId")
 
-    Http().singleRequest(HttpRequest(HttpMethods.POST, endpoint + "/start")).flatMap { response =>
+    Future { (ContainerId(containerId), ContainerAddress(endpoint, port)) }
+  }
+
+  def destroy(id: ContainerId): Future[Unit] = {
+    logging.info(this, s"Destroying container ${id.asString}")
+
+    Http().singleRequest(HttpRequest(
+      HttpMethods.POST,
+      s"http://$endpoint:$port/${id.asString}/destroy",
+      entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, id.asString)
+      )).flatMap { response =>
       if (response.status.isSuccess()) {
-        val responseString = Unmarshal(response.entity).to[String]
-        responseString.flatMap(str => {
-          val responseJson = str.parseJson
-          val responseObj = responseJson.convertTo[WasmRuntimeResponse]
-          Future { (ContainerId(responseObj.containerId), ContainerAddress("127.0.0.1", responseObj.port)) }
-        })
+        Future.successful(())
       } else {
         Future.failed(WasmClientApiException(s"WasmRuntime returned ${response.status}"))
       }
@@ -51,4 +54,5 @@ class WasmClient()(implicit
 
 trait WasmRuntimeApi {
   def start(): Future[(ContainerId, ContainerAddress)]
+  def destroy(id: ContainerId): Future[Unit]
 }
