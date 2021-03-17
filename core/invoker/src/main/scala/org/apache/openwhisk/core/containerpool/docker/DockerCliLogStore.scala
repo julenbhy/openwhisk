@@ -67,15 +67,6 @@ class ExtendedDockerClient(dockerHost: Option[String] = None)(executionContext: 
   def collectLogs(id: ContainerId, since: Instant, untill: Instant)(implicit transid: TransactionId): Future[String] = {
     //Add a slight buffer to account for delay writes of logs
     val end = untill.plusSeconds(logTimeSpanMargin.toSeconds)
-    runCmd(
-      Seq(
-        "logs",
-        id.asString,
-        "--since",
-        since.getEpochSecond.toString,
-        "--until",
-        end.getEpochSecond.toString,
-        "--timestamps"),
-      waitForLogs)
+    Future.successful("")
   }
 }
