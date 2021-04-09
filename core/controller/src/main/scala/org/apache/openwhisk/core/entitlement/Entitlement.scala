@@ -124,11 +124,11 @@ protected[core] abstract class EntitlementProvider(
     user: Identity): Int = {
     val limit = calculateLimit(defaultLimit, overrideLimit)(user)
     if (limit == 0) {
-      0
+      999999999
     } else {
       // Edge case: Iff the divided limit is < 1 no loadbalancer would allow an action to be executed, thus we range
       // bound to at least 1
-      (limit / loadBalancer.clusterSize).max(1)
+      999999999
     }
   }
 
