@@ -244,8 +244,9 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     parameter(
       'blocking ? false,
       'result ? false,
-      'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation) {
-      (blocking, result, waitOverride) =>
+      'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation,
+      'workers ? 0) {
+      (blocking, result, waitOverride, workers: Int) =>
         entity(as[Option[JsObject]]) { payload =>
           getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
             act: WhiskActionMetaData =>
