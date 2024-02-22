@@ -245,7 +245,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
       'blocking ? false,
       'result ? false,
       'timeout.as[FiniteDuration] ? controllerActivationConfig.maxWaitForBlockingActivation,
-      'workers ? 0) {
+      'workers ? 1) {
       (blocking, result, waitOverride, workers: Int) =>
         entity(as[Option[JsObject]]) { payload =>
           getEntity(WhiskActionMetaData.resolveActionAndMergeParameters(entityStore, entityName), Some {
@@ -263,7 +263,7 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                     .getOrElse(true)
 
                   if (allowInvoke) {
-                    doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result)
+                    doInvoke(user, actionWithMergedParams, payload, blocking, waitOverride, result, workers)
                   } else {
                     terminate(BadRequest, Messages.parametersNotAllowed)
                   }
@@ -281,9 +281,14 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
                        payload: Option[JsObject],
                        blocking: Boolean,
                        waitOverride: FiniteDuration,
-                       result: Boolean)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+                       result: Boolean,
+                       workers: Int)(implicit transid: TransactionId): RequestContext => Future[RouteResult] = {
+
+    println(s"\n\n \u001b[31m (doInvoke) Invoking $workers workers \u001b[0m \n  ")
+
     val waitForResponse = if (blocking) Some(waitOverride) else None
-    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None)) {
+
+    onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None, workers)) {
       case Success(Left(activationId)) =>
         // non-blocking invoke or blocking invoke which got queued instead
         respondWithActivationIdHeader(activationId) {

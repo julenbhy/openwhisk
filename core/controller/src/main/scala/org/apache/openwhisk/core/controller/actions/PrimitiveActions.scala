@@ -111,14 +111,34 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    cause: Option[ActivationId],
+    workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
       invokeComposition(user, action, payload, waitForResponse, cause)
     } else {
-      invokeSimpleAction(user, action, payload, waitForResponse, cause)
+      if (workers > 1) invokeBurstAction(user, action, payload, waitForResponse, cause, workers)
+      else invokeSimpleAction(user, action, payload, waitForResponse, cause)
     }
   }
+
+  private def invokeBurstAction(
+    user: Identity,
+    action: ExecutableWhiskActionMetaData,
+    payload: Option[JsObject],
+    waitForResponse: Option[FiniteDuration],
+    cause: Option[ActivationId],
+    workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+
+    println(s"\n\n \u001b[31m (invokeBurstAction) Invoking $workers workers \u001b[0m \n  ")
+
+
+    // TO DO: Implement the burst action invocation
+    invokeSimpleAction(user, action, payload, waitForResponse, cause)
+  }
+
+
+
 
   /**
    * A method that knows how to invoke a single primitive action.

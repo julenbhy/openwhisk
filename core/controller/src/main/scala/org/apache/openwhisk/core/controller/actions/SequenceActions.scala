@@ -73,7 +73,8 @@ protected[actions] trait SequenceActions {
     action: WhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
+    cause: Option[ActivationId],
+    workers: Int = 0)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
 
   /**
    * Executes a sequence by invoking in a blocking fashion each of its components.
