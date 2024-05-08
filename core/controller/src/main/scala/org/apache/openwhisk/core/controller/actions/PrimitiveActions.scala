@@ -122,7 +122,7 @@ protected[actions] trait PrimitiveActions {
     }
   }
 
-  private def invokeBurstAction(
+  protected[actions] def invokeBurstAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
@@ -133,8 +133,63 @@ protected[actions] trait PrimitiveActions {
     println(s"\n\n \u001b[31m (invokeBurstAction) Invoking $workers workers \u001b[0m \n  ")
 
 
-    // TO DO: Implement the burst action invocation
-    invokeSimpleAction(user, action, payload, waitForResponse, cause)
+    // Get the payload for each worker (payload structure: {"worker1":{"param1":1,"param2":1, ...},"worker2":{"param1":2,"param2":2, ...}, ...})
+    val payloadMap = payload.get.fields
+
+    // Create a list of workers and their payloads, and print the payloads
+    val workersPayload = (1 to workers).map { worker =>
+      val workerPayload = payloadMap.apply(s"worker$worker").asJsObject
+      println(s"\n\n \u001b[31m (invokeBurstAction) Worker payload: $workerPayload \u001b[0m \n  ")
+      workerPayload
+    }
+
+    // Example of how to call a single action for the first worker
+    //invokeSimpleAction(user, action, Some(workersPayload(2)), waitForResponse, cause)
+
+    // Call the multiple worker tasks
+    val workerTasks = workersPayload.map { workerPayload =>
+      invokeSimpleAction(user, action, Some(workerPayload), waitForResponse, cause)
+    }
+
+    // Wait for all the workers to finish
+    val allWorkers = Future.sequence(workerTasks)
+
+    // Aggregate the results
+    allWorkers.map { workersResults =>
+      // Print the results
+      println(s"\n\n \u001b[31m (invokeBurstAction) Workers results: $workersResults \u001b[0m \n  ")
+
+
+      // Aggregate the results
+      val aggregatedResult = workersResults.map {
+        case Right(activation) => activation
+        case Left(activationId) => activationId
+      }
+
+      // Print the aggregated result
+      println(s"\n\n \u001b[31m (invokeBurstAction) Aggregated result: $aggregatedResult \u001b[0m \n  ")
+
+      // Return the aggregated result
+      Right(aggregatedResult)
+    }
+
+    // 
+  
+    
+
+
+
+    // Return the result from the second worker
+    //allWorkers.map { workersResults =>
+    //  tworkersResults(2)
+    //}
+    
+    val result = allWorkers.map { workersResults =>
+      workersResults(2)
+    }
+    result
+   
+    //invokeSimpleAction(user, action, Some(workersPayload(2)), waitForResponse, cause)
   }
 
 
