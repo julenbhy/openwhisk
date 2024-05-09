@@ -646,6 +646,7 @@ trait WhiskWebActionsApi
             .overrides(webApiDirectives.reservedProperties ++ action.immutableParameters)) {
         val content = context.toActionArgument(onBehalfOf, isRawHttpAction)
         invokeAction(actionOwnerIdentity, action, Some(JsObject(content)), maxWaitForWebActionResult, cause = None)
+          .map(_.fold(left => left, right => throw new IllegalStateException("should not be a right")))
       } else {
         Future.failed(RejectRequest(BadRequest, Messages.parametersNotAllowed))
       }

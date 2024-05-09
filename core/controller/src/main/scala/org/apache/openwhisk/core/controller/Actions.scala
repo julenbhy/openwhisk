@@ -289,12 +289,21 @@ trait WhiskActionsApi extends WhiskCollectionAPI with PostActionActivation with 
     val waitForResponse = if (blocking) Some(waitOverride) else None
 
     onComplete(invokeAction(user, actionWithMergedParams, payload, waitForResponse, cause = None, workers)) {
-      case Success(Left(activationId)) =>
+
+      case Success(Right(activationIds)) =>
+        println(s"\n\n \u001b[31m (doInvoke) Right ActivationIds: $activationIds \u001b[0m \n  ")
+        // blocking invoke which timed out
+        complete(Accepted, JsObject("activationIds" -> activationIds.map(_.toString).toJson))
+      
+      case Success(Left(Left(activationId))) =>
+        println(s"\n\n \u001b[31m (doInvoke) Left Left ActivationId: $activationId \u001b[0m \n  ")
         // non-blocking invoke or blocking invoke which got queued instead
         respondWithActivationIdHeader(activationId) {
           complete(Accepted, activationId.toJsObject)
         }
-      case Success(Right(activation)) =>
+      
+      case Success(Left(Right(activation))) =>
+        println(s"\n\n \u001b[31m (doInvoke) Left Right ActivationId: ${activation.activationId} \u001b[0m \n  ")
         val response = if (result) activation.resultAsJson else activation.toExtendedJson()
 
         respondWithActivationIdHeader(activation.activationId) {

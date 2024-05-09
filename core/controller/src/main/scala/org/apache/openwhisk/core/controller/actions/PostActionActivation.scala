@@ -50,19 +50,19 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
-    workers:Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    workers:Int)(implicit transid: TransactionId): Future[Either[Either[ActivationId, WhiskActivation], List[ActivationId]]] = {
     action.toExecutableWhiskAction match {
       // this is a topmost sequence
       case None =>
         val SequenceExecMetaData(components) = action.exec
-        invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => r._1)
+        invokeSequence(user, action, components, payload, waitForResponse, cause, topmost = true, 0).map(r => Left(r._1))
       // a non-deprecated ExecutableWhiskAction
       case Some(executable) if !executable.exec.deprecated =>
         if (workers > 1) {
-          //invokeBurstAction(user, executable, payload, waitForResponse, cause, workers)
-          invokeBurstActionSimple(user, executable, payload, waitForResponse, cause, workers)
+          //invokeBurstActionSimple(user, executable, payload, waitForResponse, cause, workers)
+          invokeBurstAction(user, executable, payload, waitForResponse, cause, workers).map(r => Right(r))
         } else {
-          invokeSingleAction(user, executable, payload, waitForResponse, cause)
+          invokeSingleAction(user, executable, payload, waitForResponse, cause).map(r => Left(r))
         }
         //invokeSingleAction(user, executable, payload, waitForResponse, cause, workers)
       // a deprecated exec

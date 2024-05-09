@@ -74,7 +74,7 @@ protected[actions] trait SequenceActions {
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
-    workers: Int = 0)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]]
+    workers: Int = 0)(implicit transid: TransactionId): Future[Either[Either[ActivationId, WhiskActivation], List[ActivationId]]]
 
   /**
    * Executes a sequence by invoking in a blocking fashion each of its components.
@@ -370,7 +370,8 @@ protected[actions] trait SequenceActions {
           logging.debug(this, s"sequence invoking an enclosed atomic action $action")
           val timeout = action.limits.timeout.duration + 1.minute
           invokeAction(user, action, inputPayload, waitForResponse = Some(timeout), cause) map {
-            case res => (res, accounting.atomicActionCnt + 1)
+             case Left(res)=> (res, accounting.atomicActionCnt + 1)
+             case Right(_) => throw new IllegalStateException("burst in conflict with sequence activation")
           }
       }
 

@@ -126,7 +126,7 @@ protected[actions] trait PrimitiveActions {
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
-    workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    workers: Int)(implicit transid: TransactionId): Future[List[ActivationId]] = {
 
     println(s"\n\n \u001b[31m (invokeBurstAction) Invoking $workers workers \u001b[0m")
 
@@ -180,11 +180,8 @@ protected[actions] trait PrimitiveActions {
       activationIds = activationIds :+ activationId
     }
     Future.successful(activationIds)
-
-    println(s"\n\u001b[31m (invokeBurstAction) Activation IDs: $activationIds \u001b[0m \n")
-
     // Invoke a single action to avoid compilation errors until the return type is fixed
-    invokeSimpleAction(user, action, args_list(2), waitForResponse, cause)
+    // invokeSimpleAction(user, action, args_list(2), waitForResponse, cause)
   }
 
   protected[actions] def invokeBurstActionSimple(
@@ -197,7 +194,6 @@ protected[actions] trait PrimitiveActions {
 
     println(s"\n\n \u001b[31m (invokeBurstActionSimple) Invoking $workers workers \u001b[0m")
 
-    // Get the payload for each worker (payload structure: {"worker1":{"param1":1,"param2":1, ...},"worker2":{"param1":2,"param2":2, ...}, ...})
     val payloadMap = payload.get.fields
     val args_list = (1 to workers).map { worker =>
       val workerPayload = payloadMap.apply(s"worker$worker").asJsObject
@@ -205,12 +201,18 @@ protected[actions] trait PrimitiveActions {
       Some(workerPayload)
     }
 
-    // Call invokeSimpleAction for each worker (just call it)
+    // Call invokeSimpleAction for each worker
     val workerTasks = args_list.map { args =>
       invokeSimpleAction(user, action, args, waitForResponse, cause)
     }
 
-    // Return a single action to avoid compilation errors until the return type is fixed
+    // Return the list
+  
+
+
+    
+
+
     workerTasks(2)
   }
 
