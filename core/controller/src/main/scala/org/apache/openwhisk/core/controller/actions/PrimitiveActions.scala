@@ -111,14 +111,12 @@ protected[actions] trait PrimitiveActions {
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId],
-    workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     if (action.annotations.isTruthy(WhiskActivation.conductorAnnotation)) {
       invokeComposition(user, action, payload, waitForResponse, cause)
     } else {
-      if (workers > 1) invokeBurstAction(user, action, payload, waitForResponse, cause, workers)
-      else invokeSimpleAction(user, action, payload, waitForResponse, cause)
+      invokeSimpleAction(user, action, payload, waitForResponse, cause)
     }
   }
 
@@ -230,6 +228,9 @@ protected[actions] trait PrimitiveActions {
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+
+    println(s"\n\n \u001b[31m (invokeSimpleAction) Invoking action: ${action.fullyQualifiedName(false).asString} \u001b[0m \n  ")
+
 
     // merge package parameters with action (action parameters supersede), then merge in payload
     val args = action.parameters merge payload
