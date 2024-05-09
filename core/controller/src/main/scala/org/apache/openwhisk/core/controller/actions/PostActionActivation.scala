@@ -59,7 +59,8 @@ protected[core] trait PostActionActivation extends PrimitiveActions with Sequenc
       // a non-deprecated ExecutableWhiskAction
       case Some(executable) if !executable.exec.deprecated =>
         if (workers > 1) {
-          invokeBurstAction(user, executable, payload, waitForResponse, cause, workers)
+          //invokeBurstAction(user, executable, payload, waitForResponse, cause, workers)
+          invokeBurstActionSimple(user, executable, payload, waitForResponse, cause, workers)
         } else {
           invokeSingleAction(user, executable, payload, waitForResponse, cause)
         }

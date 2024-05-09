@@ -128,70 +128,91 @@ protected[actions] trait PrimitiveActions {
     cause: Option[ActivationId],
     workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
-    println(s"\n\n \u001b[31m (invokeBurstAction) Invoking $workers workers \u001b[0m \n  ")
-
+    println(s"\n\n \u001b[31m (invokeBurstAction) Invoking $workers workers \u001b[0m")
 
     // Get the payload for each worker (payload structure: {"worker1":{"param1":1,"param2":1, ...},"worker2":{"param1":2,"param2":2, ...}, ...})
     val payloadMap = payload.get.fields
-
-    // Create a list of workers and their payloads, and print the payloads
-    val workersPayload = (1 to workers).map { worker =>
-      val workerPayload = payloadMap.apply(s"worker$worker").asJsObject
-      println(s"\n\n \u001b[31m (invokeBurstAction) Worker payload: $workerPayload \u001b[0m \n  ")
-      workerPayload
+    val args_list = (1 to workers).map { worker =>
+      val args = payloadMap.apply(s"worker$worker").asJsObject
+      println(s"\n\u001b[31m (invokeBurstAction) Worker payload: $args \u001b[0m")
+      Some(args)
     }
 
-    // Example of how to call a single action for the first worker
-    //invokeSimpleAction(user, action, Some(workersPayload(2)), waitForResponse, cause)
+    var activationIds: List[ActivationId] = List()
 
-    // Call the multiple worker tasks
-    val workerTasks = workersPayload.map { workerPayload =>
-      invokeSimpleAction(user, action, Some(workerPayload), waitForResponse, cause)
-    }
+    for (i <- 0 until workers) {
 
-    // Wait for all the workers to finish
-    val allWorkers = Future.sequence(workerTasks)
+      val activationId = activationIdFactory.make()
+      activationIds = activationIds :+ activationId
+      println(s"\n\u001b[31m (invokeBurstAction) Activation ID: $activationId \u001b[0m")
 
-    // Aggregate the results
-    allWorkers.map { workersResults =>
-      // Print the results
-      println(s"\n\n \u001b[31m (invokeBurstAction) Workers results: $workersResults \u001b[0m \n  ")
+      val startActivation = transid.started(
+        this,
+        waitForResponse
+          .map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING)
+          .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION),
+        logLevel = InfoLevel)
+      val startLoadbalancer =
+        transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
 
+      val message = ActivationMessage(
+        transid,
+        FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), action.binding),
+        action.rev,
+        user,
+        activationId, // activation id created here
+        activeAckTopicIndex,
+        waitForResponse.isDefined,
+        args_list(i),
+        action.parameters.initParameters,
+        action.parameters.lockedParameters(payload.map(_.fields.keySet).getOrElse(Set.empty)),
+        cause = cause,
+        WhiskTracerProvider.tracer.getTraceContext(transid))
 
-      // Aggregate the results
-      val aggregatedResult = workersResults.map {
-        case Right(activation) => activation
-        case Left(activationId) => activationId
+      val postedFuture = loadBalancer.publish(action, message)
+      postedFuture andThen {
+        case Success(_) => transid.finished(this, startLoadbalancer)
+        case Failure(e) => transid.failed(this, startLoadbalancer, e.getMessage)
+      } andThen {
+        case Success(_) => transid.finished(this, startActivation)
+        case Failure(e) => transid.failed(this, startActivation, e.getMessage)
       }
-
-      // Print the aggregated result
-      println(s"\n\n \u001b[31m (invokeBurstAction) Aggregated result: $aggregatedResult \u001b[0m \n  ")
-
-      // Return the aggregated result
-      Right(aggregatedResult)
+      activationIds = activationIds :+ activationId
     }
+    Future.successful(activationIds)
 
-    // 
-  
-    
+    println(s"\n\u001b[31m (invokeBurstAction) Activation IDs: $activationIds \u001b[0m \n")
 
-
-
-    // Return the result from the second worker
-    //allWorkers.map { workersResults =>
-    //  tworkersResults(2)
-    //}
-    
-    val result = allWorkers.map { workersResults =>
-      workersResults(2)
-    }
-    result
-   
-    //invokeSimpleAction(user, action, Some(workersPayload(2)), waitForResponse, cause)
+    // Invoke a single action to avoid compilation errors until the return type is fixed
+    invokeSimpleAction(user, action, args_list(2), waitForResponse, cause)
   }
 
+  protected[actions] def invokeBurstActionSimple(
+    user: Identity,
+    action: ExecutableWhiskActionMetaData,
+    payload: Option[JsObject],
+    waitForResponse: Option[FiniteDuration],
+    cause: Option[ActivationId],
+    workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
+    println(s"\n\n \u001b[31m (invokeBurstActionSimple) Invoking $workers workers \u001b[0m")
 
+    // Get the payload for each worker (payload structure: {"worker1":{"param1":1,"param2":1, ...},"worker2":{"param1":2,"param2":2, ...}, ...})
+    val payloadMap = payload.get.fields
+    val args_list = (1 to workers).map { worker =>
+      val workerPayload = payloadMap.apply(s"worker$worker").asJsObject
+      println(s"\n\u001b[31m (invokeBurstActionSimple) Worker payload: $workerPayload \u001b[0m")
+      Some(workerPayload)
+    }
+
+    // Call invokeSimpleAction for each worker (just call it)
+    val workerTasks = args_list.map { args =>
+      invokeSimpleAction(user, action, args, waitForResponse, cause)
+    }
+
+    // Return a single action to avoid compilation errors until the return type is fixed
+    workerTasks(2)
+  }
 
   /**
    * A method that knows how to invoke a single primitive action.
