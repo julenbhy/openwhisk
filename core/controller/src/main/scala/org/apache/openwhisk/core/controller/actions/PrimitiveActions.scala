@@ -190,7 +190,7 @@ protected[actions] trait PrimitiveActions {
     payload: Option[JsObject],
     waitForResponse: Option[FiniteDuration],
     cause: Option[ActivationId],
-    workers: Int)(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
+    workers: Int)(implicit transid: TransactionId): Future[List[ActivationId]] = {
 
     println(s"\n\n \u001b[31m (invokeBurstActionSimple) Invoking $workers workers \u001b[0m")
 
@@ -201,19 +201,19 @@ protected[actions] trait PrimitiveActions {
       Some(workerPayload)
     }
 
-    // Call invokeSimpleAction for each worker
-    val workerTasks = args_list.map { args =>
-      invokeSimpleAction(user, action, args, waitForResponse, cause)
-    }
+    // Call invokeSimpleAction for each worker. Generate a list of Future[List[ActivationId]]. IF action is returned, throw an error
+    val workerTasks: Future[List[ActivationId]] = Future.sequence(args_list.map { args =>
+      invokeSimpleAction(user, action, args, waitForResponse, cause).map {
+        case Left(activationId) => activationId
+        case Right(_) =>
+          throw new IllegalStateException("Expected activation id, but got activation")
+      }
+    }.toList)
+
 
     // Return the list
-  
-
-
+    workerTasks
     
-
-
-    workerTasks(2)
   }
 
   /**
