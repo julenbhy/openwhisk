@@ -170,6 +170,7 @@ protected[actions] trait PrimitiveActions {
         WhiskTracerProvider.tracer.getTraceContext(transid))
 
       val postedFuture = loadBalancer.publish(action, message)
+
       postedFuture andThen {
         case Success(_) => transid.finished(this, startLoadbalancer)
         case Failure(e) => transid.failed(this, startLoadbalancer, e.getMessage)
@@ -178,10 +179,9 @@ protected[actions] trait PrimitiveActions {
         case Failure(e) => transid.failed(this, startActivation, e.getMessage)
       }
       activationIds = activationIds :+ activationId
+
     }
     Future.successful(activationIds)
-    // Invoke a single action to avoid compilation errors until the return type is fixed
-    // invokeSimpleAction(user, action, args_list(2), waitForResponse, cause)
   }
 
   protected[actions] def invokeBurstActionSimple(
