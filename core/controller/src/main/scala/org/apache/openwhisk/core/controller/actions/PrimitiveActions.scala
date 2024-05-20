@@ -120,6 +120,10 @@ protected[actions] trait PrimitiveActions {
     }
   }
 
+ /*
+  * A method that knows how to invoke a burst of primitive actions.
+  *
+  */
   protected[actions] def invokeBurstAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
@@ -184,37 +188,6 @@ protected[actions] trait PrimitiveActions {
     Future.successful(activationIds)
   }
 
-  protected[actions] def invokeBurstActionSimple(
-    user: Identity,
-    action: ExecutableWhiskActionMetaData,
-    payload: Option[JsObject],
-    waitForResponse: Option[FiniteDuration],
-    cause: Option[ActivationId],
-    workers: Int)(implicit transid: TransactionId): Future[List[ActivationId]] = {
-
-    println(s"\n\n \u001b[31m (invokeBurstActionSimple) Invoking $workers workers \u001b[0m")
-
-    val payloadMap = payload.get.fields
-    val args_list = (1 to workers).map { worker =>
-      val workerPayload = payloadMap.apply(s"worker$worker").asJsObject
-      println(s"\n\u001b[31m (invokeBurstActionSimple) Worker payload: $workerPayload \u001b[0m")
-      Some(workerPayload)
-    }
-
-    // Call invokeSimpleAction for each worker. Generate a list of Future[List[ActivationId]]. IF action is returned, throw an error
-    val workerTasks: Future[List[ActivationId]] = Future.sequence(args_list.map { args =>
-      invokeSimpleAction(user, action, args, waitForResponse, cause).map {
-        case Left(activationId) => activationId
-        case Right(_) =>
-          throw new IllegalStateException("Expected activation id, but got activation")
-      }
-    }.toList)
-
-
-    // Return the list
-    workerTasks
-    
-  }
 
   /**
    * A method that knows how to invoke a single primitive action.
