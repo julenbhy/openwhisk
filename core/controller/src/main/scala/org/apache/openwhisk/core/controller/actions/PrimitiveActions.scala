@@ -124,7 +124,7 @@ protected[actions] trait PrimitiveActions {
   * A method that knows how to invoke a burst of primitive actions.
   *
   */
-  protected[actions] def invokeBurstAction(
+  protected[actions] def invokeParallelAction(
     user: Identity,
     action: ExecutableWhiskActionMetaData,
     payload: Option[JsObject],
@@ -132,13 +132,13 @@ protected[actions] trait PrimitiveActions {
     cause: Option[ActivationId],
     workers: Int)(implicit transid: TransactionId): Future[List[ActivationId]] = {
 
-    println(s"\n\n \u001b[31m (invokeBurstAction) Invoking $workers workers \u001b[0m")
+    println(s"\n\n \u001b[31m (invokeParallelAction) Invoking $workers workers \u001b[0m")
 
     // Get the payload for each worker (payload structure: {"worker1":{"param1":1,"param2":1, ...},"worker2":{"param1":2,"param2":2, ...}, ...})
     val payloadMap = payload.get.fields
     val args_list = (1 to workers).map { worker =>
       val args = payloadMap.apply(s"worker$worker").asJsObject
-      println(s"\n\u001b[31m (invokeBurstAction) Worker payload: $args \u001b[0m")
+      println(s"\n\u001b[31m (invokeParallelAction) Worker payload: $args \u001b[0m")
       Some(args)
     }
 
@@ -148,7 +148,7 @@ protected[actions] trait PrimitiveActions {
 
       val activationId = activationIdFactory.make()
       activationIds = activationIds :+ activationId
-      println(s"\n\u001b[31m (invokeBurstAction) Activation ID: $activationId \u001b[0m")
+      println(s"\n\u001b[31m (invokeParallelAction) Activation ID: $activationId \u001b[0m")
 
       val startActivation = transid.started(
         this,
