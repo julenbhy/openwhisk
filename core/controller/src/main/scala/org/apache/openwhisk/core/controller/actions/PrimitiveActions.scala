@@ -121,7 +121,7 @@ protected[actions] trait PrimitiveActions {
   }
 
  /*
-  * A method that knows how to invoke a burst of primitive actions.
+  * A method that knows how to invoke a parallel of primitive actions.
   *
   */
   protected[actions] def invokeParallelAction(
@@ -133,6 +133,7 @@ protected[actions] trait PrimitiveActions {
     workers: Int)(implicit transid: TransactionId): Future[List[ActivationId]] = {
 
     println(s"\n\n \u001b[31m (invokeParallelAction) Invoking $workers workers \u001b[0m")
+    println(s"\n\n \u001b[31m (invokeParallelAction) waitinForResponse: $waitForResponse \u001b[0m")
 
     // Get the payload for each worker (payload structure: {"worker1":{"param1":1,"param2":1, ...},"worker2":{"param1":2,"param2":2, ...}, ...})
     val payloadMap = payload.get.fields
@@ -146,6 +147,7 @@ protected[actions] trait PrimitiveActions {
 
     for (i <- 0 until workers) {
 
+      val args = action.parameters merge args_list(i)
       val activationId = activationIdFactory.make()
       activationIds = activationIds :+ activationId
       println(s"\n\u001b[31m (invokeParallelAction) Activation ID: $activationId \u001b[0m")
@@ -167,7 +169,7 @@ protected[actions] trait PrimitiveActions {
         activationId, // activation id created here
         activeAckTopicIndex,
         waitForResponse.isDefined,
-        args_list(i),
+        args,
         action.parameters.initParameters,
         action.parameters.lockedParameters(payload.map(_.fields.keySet).getOrElse(Set.empty)),
         cause = cause,
@@ -185,6 +187,7 @@ protected[actions] trait PrimitiveActions {
       activationIds = activationIds :+ activationId
 
     }
+
     Future.successful(activationIds)
   }
 
@@ -226,21 +229,26 @@ protected[actions] trait PrimitiveActions {
     cause: Option[ActivationId])(implicit transid: TransactionId): Future[Either[ActivationId, WhiskActivation]] = {
 
     println(s"\n\n \u001b[31m (invokeSimpleAction) Invoking action: ${action.fullyQualifiedName(false).asString} \u001b[0m \n  ")
-
-
+    println(s"\n\n \u001b[31m (invokeSimpleAction) waitForResponse: $waitForResponse \u001b[0m \n  ")
     // merge package parameters with action (action parameters supersede), then merge in payload
     val args = action.parameters merge payload
+
+    // generate a new unique activation id
     val activationId = activationIdFactory.make()
 
+    // log the start of the activation
     val startActivation = transid.started(
       this,
       waitForResponse
         .map(_ => LoggingMarkers.CONTROLLER_ACTIVATION_BLOCKING)
         .getOrElse(LoggingMarkers.CONTROLLER_ACTIVATION),
       logLevel = InfoLevel)
+
+    // log the start of the loadbalancer action
     val startLoadbalancer =
       transid.started(this, LoggingMarkers.CONTROLLER_LOADBALANCER, s"action activation id: ${activationId}")
 
+    // construct the message for the invoker
     val message = ActivationMessage(
       transid,
       FullyQualifiedEntityName(action.namespace, action.name, Some(action.version), action.binding),
@@ -255,8 +263,10 @@ protected[actions] trait PrimitiveActions {
       cause = cause,
       WhiskTracerProvider.tracer.getTraceContext(transid))
 
+    // post the message to the loadbalancer (intantiated in WhiskServices)
     val postedFuture = loadBalancer.publish(action, message)
 
+    // wait for the response from the loadbalancer
     postedFuture andThen {
       case Success(_) => transid.finished(this, startLoadbalancer)
       case Failure(e) => transid.failed(this, startLoadbalancer, e.getMessage)
@@ -266,6 +276,7 @@ protected[actions] trait PrimitiveActions {
         .map { timeout =>
           // yes, then wait for the activation response from the message bus
           // (known as the active response or active ack)
+          println(s"\n\n \u001b[31m (invokeSimpleAction) Waiting for activation response \u001b[0m \n  ")
           waitForActivationResponse(user, message.activationId, timeout, activeAckResponse)
         }
         .getOrElse {
