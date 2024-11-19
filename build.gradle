@@ -20,13 +20,14 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
+        //classpath "cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
+        classpath "gradle.plugin.cz.alenkacz:gradle-scalafmt:${gradle.scalafmt.version}"
     }
 }
 
 plugins {
     id "com.gradle.build-scan" version "2.3"
-    id "org.scoverage" version "4.0.1" apply false
+    id "org.scoverage" version "7.0.0" apply false
 }
 
 
